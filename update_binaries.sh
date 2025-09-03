@@ -41,31 +41,31 @@ if [[ "$MODE" != "mainnet" && "$MODE" != "testnet" ]]; then
 fi
 
 # Install Besu
-BESU_URL="https://github.com/ethpar/ethpar-binaries/releases/download/Besu-${BESU_TAG}/besu-${BESU_TAG}.tar"
-BESU_INSTALL_DIR="/usr/local/bin/besu${BESU_TAG}"
+BESU_URL="https://github.com/ethpar/ethpar-binaries/releases/download/Besu-${BESU_TAG}/besu-${BESU_TAG}.tar.gz"
+BESU_INSTALL_DIR="/usr/local/bin/"
 
-if [ -d "$BESU_INSTALL_DIR" ]; then
+if [ -d "$BESU_INSTALL_DIR/besu-${BESU_TAG}" ]; then
   echo "⚠️ Besu ${BESU_TAG} already installed at ${BESU_INSTALL_DIR}, skipping."
 else
   cd "$HOME"
-  wget -O "besu-${BESU_TAG}.tar" "$BESU_URL"
-  tar -xvf "besu-${BESU_TAG}.tar" -C "$HOME"
-  rm "besu-${BESU_TAG}.tar"
-  sudo mv "$HOME/besu" "$BESU_INSTALL_DIR"
+  wget -O "besu-${BESU_TAG}.tar.gz" "$BESU_URL"
+  tar -xvf "besu-${BESU_TAG}.tar.gz" -C "$HOME"
+  rm "besu-${BESU_TAG}.tar.gz"
+  sudo mv "$HOME/besu-${BESU_TAG}" "$BESU_INSTALL_DIR"
 fi
 
 # Install Teku
-TEKU_URL="https://github.com/ethpar/ethpar-binaries/releases/download/Teku-${TEKU_TAG}/teku-${TEKU_TAG}.tar"
-TEKU_INSTALL_DIR="/usr/local/bin/teku${TEKU_TAG}"
+TEKU_URL="https://github.com/ethpar/ethpar-binaries/releases/download/Teku-${TEKU_TAG}/teku-${TEKU_TAG}.tar.gz"
+TEKU_INSTALL_DIR="/usr/local/bin/"
 
-if [ -d "$TEKU_INSTALL_DIR" ]; then
+if [ -d "$TEKU_INSTALL_DIR/teku-${TEKU_TAG}" ]; then
   echo "⚠️ Teku ${TEKU_TAG} already installed at ${TEKU_INSTALL_DIR}, skipping."
 else
   cd "$HOME"
-  wget -O "teku-${TEKU_TAG}.tar" "$TEKU_URL"
-  tar -xvf "teku-${TEKU_TAG}.tar" -C "$HOME"
-  rm "teku-${TEKU_TAG}.tar"
-  sudo mv "$HOME/teku" "$TEKU_INSTALL_DIR"
+  wget -O "teku-${TEKU_TAG}.tar.gz" "$TEKU_URL"
+  tar -xvf "teku-${TEKU_TAG}.tar.gz" -C "$HOME"
+  rm "teku-${TEKU_TAG}.tar.gz"
+  sudo mv "$HOME/teku-${TEKU_TAG}" "$TEKU_INSTALL_DIR"
 fi
 
 # Update systemd service files with backups
@@ -85,9 +85,9 @@ fi
 sudo cp "$EXECUTION_SERVICE" "${EXECUTION_SERVICE}.bak"
 sudo cp "$CONSENSUS_SERVICE" "${CONSENSUS_SERVICE}.bak"
 
-# Replace paths
-sudo sed -i "s|/usr/local/bin.*/bin/besu|${BESU_INSTALL_DIR}/bin/besu|g" "$EXECUTION_SERVICE"
-sudo sed -i "s|/usr/local/bin.*/bin/teku|${TEKU_INSTALL_DIR}/bin/teku|g" "$CONSENSUS_SERVICE"
+# Update service files to reference the desired Besu/Teku versions
+sudo sed -i "s|ExecStart=/usr/local/bin.*/bin/besu|ExecStart=/usr/local/bin/besu-${BESU_TAG}/bin/besu|g" "$EXECUTION_SERVICE"
+sudo sed -i "s|ExecStart=/usr/local/bin.*/bin/teku|ExecStart=/usr/local/bin/teku-${TEKU_TAG}/bin/teku|g" "$CONSENSUS_SERVICE"
 
 # Reload and restart services
 echo "Restarting Besu and Teku services"
