@@ -28,8 +28,8 @@ while true; do
 done
 
 # Validate required parameters
-if [[ -z "$BESU_TAG" || -z "$TEKU_TAG" || -z "$MODE" ]]; then
-  echo "Usage: $0 --besu <BESU_VERSION> --teku <TEKU_VERSION> --mode <mainnet|testnet>"
+if [[ -z "${MODE}" ]]; then
+  echo "Usage: $0 [--besu <BESU_VERSION>] [--teku <TEKU_VERSION>] --mode <mainnet|testnet>"
   echo "Example: $0 --besu 25.8.1 --teku 25.8.0 --mode testnet"
   exit 1
 fi
@@ -40,33 +40,38 @@ if [[ "$MODE" != "mainnet" && "$MODE" != "testnet" ]]; then
   exit 1
 fi
 
-# Install Besu
-BESU_URL="https://github.com/ethpar/ethpar-binaries/releases/download/Besu-${BESU_TAG}/besu-${BESU_TAG}.tar.gz"
-BESU_INSTALL_DIR="/usr/local/bin/"
 
-if [ -d "$BESU_INSTALL_DIR/besu-${BESU_TAG}" ]; then
-  echo "⚠️ Besu ${BESU_TAG} already installed at ${BESU_INSTALL_DIR}, skipping."
-else
-  cd "$HOME"
-  wget -O "besu-${BESU_TAG}.tar.gz" "$BESU_URL"
-  tar -xvf "besu-${BESU_TAG}.tar.gz" -C "$HOME"
-  rm "besu-${BESU_TAG}.tar.gz"
-  sudo mv "$HOME/besu-${BESU_TAG}" "$BESU_INSTALL_DIR"
+# Install Besu if BESU_TAG is set
+if [[ -n "${BESU_TAG:-}" ]]; then
+  BESU_URL="https://github.com/ethpar/ethpar-binaries/releases/download/Besu-${BESU_TAG}/besu-${BESU_TAG}.tar.gz"
+  BESU_INSTALL_DIR="/usr/local/bin/"
+  if [ -d "$BESU_INSTALL_DIR/besu-${BESU_TAG}" ]; then
+    echo "⚠️ Besu ${BESU_TAG} already installed at ${BESU_INSTALL_DIR}, skipping."
+  else
+    cd "$HOME"
+    wget -O "besu-${BESU_TAG}.tar.gz" "$BESU_URL"
+    tar -xvf "besu-${BESU_TAG}.tar.gz" -C "$HOME"
+    rm "besu-${BESU_TAG}.tar.gz"
+    sudo mv "$HOME/besu-${BESU_TAG}" "$BESU_INSTALL_DIR"
+  fi
 fi
 
-# Install Teku
-TEKU_URL="https://github.com/ethpar/ethpar-binaries/releases/download/Teku-${TEKU_TAG}/teku-${TEKU_TAG}.tar.gz"
-TEKU_INSTALL_DIR="/usr/local/bin/"
 
-if [ -d "$TEKU_INSTALL_DIR/teku-${TEKU_TAG}" ]; then
-  echo "⚠️ Teku ${TEKU_TAG} already installed at ${TEKU_INSTALL_DIR}, skipping."
-else
-  cd "$HOME"
-  wget -O "teku-${TEKU_TAG}.tar.gz" "$TEKU_URL"
-  tar -xvf "teku-${TEKU_TAG}.tar.gz" -C "$HOME"
-  rm "teku-${TEKU_TAG}.tar.gz"
-  sudo mv "$HOME/teku-${TEKU_TAG}" "$TEKU_INSTALL_DIR"
+# Install Teku if TEKU_TAG is set
+if [[ -n "${TEKU_TAG:-}" ]]; then
+  TEKU_URL="https://github.com/ethpar/ethpar-binaries/releases/download/Teku-${TEKU_TAG}/teku-${TEKU_TAG}.tar.gz"
+  TEKU_INSTALL_DIR="/usr/local/bin/"
+  if [ -d "$TEKU_INSTALL_DIR/teku-${TEKU_TAG}" ]; then
+    echo "⚠️ Teku ${TEKU_TAG} already installed at ${TEKU_INSTALL_DIR}, skipping."
+  else
+    cd "$HOME"
+    wget -O "teku-${TEKU_TAG}.tar.gz" "$TEKU_URL"
+    tar -xvf "teku-${TEKU_TAG}.tar.gz" -C "$HOME"
+    rm "teku-${TEKU_TAG}.tar.gz"
+    sudo mv "$HOME/teku-${TEKU_TAG}" "$TEKU_INSTALL_DIR"
+  fi
 fi
+
 
 # Update systemd service files with backups
 if [[ "$MODE" == "mainnet" ]]; then
@@ -85,15 +90,23 @@ fi
 sudo cp "$EXECUTION_SERVICE" "${EXECUTION_SERVICE}.bak"
 sudo cp "$CONSENSUS_SERVICE" "${CONSENSUS_SERVICE}.bak"
 
-# Update service files to reference the desired Besu/Teku versions
-sudo sed -i "s|ExecStart=/usr/local/bin.*/bin/besu|ExecStart=/usr/local/bin/besu-${BESU_TAG}/bin/besu|g" "$EXECUTION_SERVICE"
-sudo sed -i "s|ExecStart=/usr/local/bin.*/bin/teku|ExecStart=/usr/local/bin/teku-${TEKU_TAG}/bin/teku|g" "$CONSENSUS_SERVICE"
+# Update service files to reference the desired Besu/Teku versions if set
+if [[ -n "${BESU_TAG:-}" ]]; then
+  sudo sed -i "s|ExecStart=/usr/local/bin.*/bin/besu|ExecStart=/usr/local/bin/besu-${BESU_TAG}/bin/besu|g" "$EXECUTION_SERVICE"
+  sudo systemctl daemon-reload
+  sudo systemctl restart "$EXECUTION_SERVICE_NAME"
+fi
+if [[ -n "${TEKU_TAG:-}" ]]; then
+  sudo sed -i "s|ExecStart=/usr/local/bin.*/bin/teku|ExecStart=/usr/local/bin/teku-${TEKU_TAG}/bin/teku|g" "$CONSENSUS_SERVICE"
+  sudo systemctl daemon-reload
+  sudo systemctl restart "$CONSENSUS_SERVICE_NAME"
+fi
 
-# Reload and restart services
-echo "Restarting Besu and Teku services"
-sudo systemctl daemon-reload
-sudo systemctl restart "$EXECUTION_SERVICE_NAME"
-sudo systemctl restart "$CONSENSUS_SERVICE_NAME"
-
-echo "✅ Besu ${BESU_TAG} and Teku ${TEKU_TAG} installed, service files updated, and services restarted."
+echo "✅ Update complete."
+if [[ -n "${BESU_TAG:-}" ]]; then
+  echo "Besu ${BESU_TAG} installed/updated."
+fi
+if [[ -n "${TEKU_TAG:-}" ]]; then
+  echo "Teku ${TEKU_TAG} installed/updated."
+fi
 echo "Previous service files have been created at ${EXECUTION_SERVICE}.bak and ${CONSENSUS_SERVICE}.bak"
